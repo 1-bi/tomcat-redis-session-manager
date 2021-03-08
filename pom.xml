@@ -1,0 +1,21 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.1-bi</groupId>
+  <artifactId>tomcat-redis-session</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>tomcat redis session</name>
+  <description>本项目为继续进行并支持 tomcat 8.x 9.x 10.x 而设计的版本，为了不影响原码，故原码目录保留，并新开新项目并进行继续处理。</description>
+  <organization>
+  	<name>1-bi</name>
+  </organization>
+  <modules>
+  	<module>tomcat8x</module>
+  </modules>
+  <properties>
+  	<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  	<jdk.version>1.8</jdk.version>
+  	<maven.compiler.source>${jdk.version}</maven.compiler.source>
+  	<maven.compiler.target>${jdk.version}</maven.compiler.target>
+  </properties>
+</project>

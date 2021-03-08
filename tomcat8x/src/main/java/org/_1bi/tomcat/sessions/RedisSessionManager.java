@@ -1,4 +1,4 @@
-package com.orangefunction.tomcat.redissessions;
+package org._1bi.tomcat.sessions;
 
 import org.apache.catalina.Lifecycle;
 import org.apache.catalina.LifecycleException;
