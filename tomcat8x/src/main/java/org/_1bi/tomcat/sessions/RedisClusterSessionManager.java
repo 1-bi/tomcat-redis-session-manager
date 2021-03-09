@@ -33,7 +33,7 @@ import redis.clients.util.Pool;
 
 
 
-public class RedisSessionManager extends ManagerBase implements RedisSessionManagerBean, Lifecycle {
+public class RedisClusterSessionManager extends ManagerBase implements RedisSessionManagerBean,Lifecycle {
 
 	enum SessionPersistPolicy {
 		DEFAULT, SAVE_ON_CHANGE, ALWAYS_SAVE_AFTER_REQUEST;
@@ -51,7 +51,7 @@ public class RedisSessionManager extends ManagerBase implements RedisSessionMana
 
 	protected byte[] NULL_SESSION = "null".getBytes();
 
-	private final Log log = LogFactory.getLog(RedisSessionManager.class);
+	private final Log log = LogFactory.getLog(RedisClusterSessionManager.class);
 
 	protected String host = "localhost";
 	protected int port = 6379;
@@ -913,4 +913,5 @@ public class RedisSessionManager extends ManagerBase implements RedisSessionMana
 		this.connectionPoolConfig.setJmxNamePrefix(jmxNamePrefix);
 	}
 }
+
 
