@@ -6,9 +6,12 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.runner.RunWith;
+import org.junit.platform.runner.JUnitPlatform;
 
 import redis.clients.jedis.JedisCluster;
 
+@RunWith(JUnitPlatform.class)
 public class JedisClusterPoolTest {
 	
 	private static ConnectionPool<JedisCluster> pool;
@@ -16,7 +19,7 @@ public class JedisClusterPoolTest {
 	
 	
 	@BeforeAll
-	static void initAll() {
+	public static void initAll() {
 
 		
 		
@@ -26,14 +29,10 @@ public class JedisClusterPoolTest {
 		clusterProps.setProperty( RedisConfig.CLUSTER_PROPERTY, "10.12.204.78:6379,10.12.204.79:6379,10.12.204.80:6379" );
 		clusterProps.setProperty( RedisConfig.TIMEOUT_PROPERTY , "10000");
 		clusterProps.setProperty( RedisConfig.MAXATTE_PROPERTY , "6");
-		//clusterProps.setProperty( RedisConfig.PASSWORD_PROPERTY  , null);		
-		
-	
-
 		
 		
 		pool = new RedisClusterConnPool( poolConfig , clusterProps );
-		
+
 	}
 	
 	

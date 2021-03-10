@@ -215,7 +215,7 @@ public class RedisClusterConnPool implements ConnectionPool<JedisCluster> {
         
         
         pool = new GenericObjectPool<JedisCluster>(factory, poolConfig);  
-        //jedisCluster = new JedisCluster(clusterNodes, connectionTimeout, soTimeout, maxAttempts, password, poolConfig);
+
     }
 
     @Override
