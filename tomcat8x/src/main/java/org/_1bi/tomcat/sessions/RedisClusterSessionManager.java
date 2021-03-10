@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Enumeration;
 import java.util.Iterator;
+import java.util.Objects;
+import java.util.Properties;
 import java.util.Set;
 
 import org.apache.catalina.Context;
@@ -50,7 +52,8 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 
 	protected String host = "localhost";
 	protected String password = null;
-	protected int timeout = Protocol.DEFAULT_TIMEOUT;
+	
+	private String timeout;
 
 	protected RedisClusterConnPool connectionPool;
 
@@ -91,11 +94,11 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 	}
 
 
-	public int getTimeout() {
+	public String getTimeout() {
 		return timeout;
 	}
 
-	public void setTimeout(int timeout) {
+	public void setTimeout(String timeout) {
 		this.timeout = timeout;
 	}
 
@@ -657,10 +660,17 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 	private void initializeDatabaseConnection() throws LifecycleException {
 		try {
 			
+			Properties clusterProps = new Properties();
+			clusterProps.setProperty( RedisConfig.CLUSTER_PROPERTY, getHost() );
+			clusterProps.setProperty( RedisConfig.TIMEOUT_PROPERTY , getTimeout());
+			clusterProps.setProperty( RedisConfig.MAXATTE_PROPERTY , "6");
 			
+			if ( !Objects.isNull( getPassword() ) ) {
+				clusterProps.setProperty( RedisConfig.PASSWORD_PROPERTY ,  getPassword());
+			}
 			
-			
-			//connectionPool = new JedisPool(this.connectionPoolConfig, getHost(), getPort(), getTimeout(),		getPassword());
+			this.connectionPool = new RedisClusterConnPool( connectionPoolConfig , clusterProps );
+
 		} catch (Exception e) {
 			e.printStackTrace();
 			throw new LifecycleException("Error connecting to Redis", e);
