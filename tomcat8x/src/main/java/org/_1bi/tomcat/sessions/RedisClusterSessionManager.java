@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Enumeration;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -20,12 +19,8 @@ import org.apache.catalina.session.ManagerBase;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.JedisPoolConfig;
-import redis.clients.jedis.JedisSentinelPool;
+import redis.clients.jedis.JedisCluster;
 import redis.clients.jedis.Protocol;
-import redis.clients.util.Pool;
 
 
 
@@ -33,7 +28,7 @@ import redis.clients.util.Pool;
 
 
 
-public class RedisClusterSessionManager extends ManagerBase implements RedisSessionManagerBean,Lifecycle {
+public class RedisClusterSessionManager extends ManagerBase implements RedisSessionManagerBean, Lifecycle {
 
 	enum SessionPersistPolicy {
 		DEFAULT, SAVE_ON_CHANGE, ALWAYS_SAVE_AFTER_REQUEST;
@@ -54,15 +49,10 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 	private final Log log = LogFactory.getLog(RedisClusterSessionManager.class);
 
 	protected String host = "localhost";
-	protected int port = 6379;
-	protected int database = 0;
 	protected String password = null;
 	protected int timeout = Protocol.DEFAULT_TIMEOUT;
-	protected String sentinelMaster = null;
-	Set<String> sentinelSet = null;
 
-	protected Pool<Jedis> connectionPool;
-	protected JedisPoolConfig connectionPoolConfig = new JedisPoolConfig();
+	protected RedisClusterConnPool connectionPool;
 
 	protected RedisSessionHandlerValve handlerValve;
 	protected ThreadLocal<RedisSession> currentSession = new ThreadLocal<>();
@@ -71,7 +61,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 	protected ThreadLocal<Boolean> currentSessionIsPersisted = new ThreadLocal<>();
 	protected Serializer serializer;
 
-	protected static String name = "RedisSessionManager";
+	protected static String name = "RedisClusterSessionManager";
 
 	protected String serializationStrategyClass = "org._1bi.tomcat.sessions.JavaSerializer";
 
@@ -80,8 +70,6 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 	/**
 	 * The lifecycle event support for this component.
 	 */
-	// protected LifecycleSupport lifecycle = new LifecycleSupport(this);
-
 	protected LifecycleSupport lifecycle = new LifecycleSupport(this);
 
 	public String getHost() {
@@ -91,6 +79,8 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 	public void setHost(String host) {
 		this.host = host;
 	}
+	
+	private int port = 6379;
 
 	public int getPort() {
 		return port;
@@ -100,13 +90,6 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 		this.port = port;
 	}
 
-	public int getDatabase() {
-		return database;
-	}
-
-	public void setDatabase(int database) {
-		this.database = database;
-	}
 
 	public int getTimeout() {
 		return timeout;
@@ -158,37 +141,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 		return this.sessionPersistPoliciesSet.contains(SessionPersistPolicy.ALWAYS_SAVE_AFTER_REQUEST);
 	}
 
-	public String getSentinels() {
-		StringBuilder sentinels = new StringBuilder();
-		for (Iterator<String> iter = this.sentinelSet.iterator(); iter.hasNext();) {
-			sentinels.append(iter.next());
-			if (iter.hasNext()) {
-				sentinels.append(",");
-			}
-		}
-		return sentinels.toString();
-	}
 
-	public void setSentinels(String sentinels) {
-		if (null == sentinels) {
-			sentinels = "";
-		}
-
-		String[] sentinelArray = sentinels.split(",");
-		this.sentinelSet = new HashSet<String>(Arrays.asList(sentinelArray));
-	}
-
-	public Set<String> getSentinelSet() {
-		return this.sentinelSet;
-	}
-
-	public String getSentinelMaster() {
-		return this.sentinelMaster;
-	}
-
-	public void setSentinelMaster(String master) {
-		this.sentinelMaster = master;
-	}
 
 	@Override
 	public int getRejectedSessions() {
@@ -200,26 +153,17 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 		// Do nothing.
 	}
 
-	protected Jedis acquireConnection() {
-		Jedis jedis = connectionPool.getResource();
-
-		if (getDatabase() != 0) {
-			jedis.select(getDatabase());
-		}
-
+	protected JedisCluster acquireConnection() {
+		JedisCluster jedis = connectionPool.getConnection();
 		return jedis;
 	}
 
-	protected void returnConnection(Jedis jedis, Boolean error) {
-		if (error) {
-			connectionPool.returnBrokenResource(jedis);
-		} else {
-			connectionPool.returnResource(jedis);
-		}
+	protected void returnConnection(JedisCluster jedis, Boolean error) {
+		connectionPool.returnConnection(jedis);
 	}
 
-	protected void returnConnection(Jedis jedis) {
-		returnConnection(jedis, false);
+	protected void returnConnection(JedisCluster jedis) {
+		connectionPool.returnConnection(jedis);
 	}
 
 	@Override
@@ -325,7 +269,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 		setState(LifecycleState.STOPPING);
 
 		try {
-			connectionPool.destroy();
+			connectionPool.close();
 		} catch (Exception e) {
 			// Do nothing.
 		}
@@ -341,7 +285,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 		String jvmRoute = getJvmRoute();
 
 		Boolean error = true;
-		Jedis jedis = null;
+		JedisCluster jedis = null;
 		try {
 			jedis = acquireConnection();
 
@@ -464,7 +408,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 	}
 
 	public void clear() {
-		Jedis jedis = null;
+		JedisCluster jedis = null;
 		Boolean error = true;
 		try {
 			jedis = acquireConnection();
@@ -478,7 +422,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 	}
 
 	public int getSize() throws IOException {
-		Jedis jedis = null;
+		JedisCluster jedis = null;
 		Boolean error = true;
 		try {
 			jedis = acquireConnection();
@@ -493,7 +437,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 	}
 
 	public String[] keys() throws IOException {
-		Jedis jedis = null;
+		JedisCluster jedis = null;
 		Boolean error = true;
 		try {
 			jedis = acquireConnection();
@@ -508,7 +452,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 	}
 
 	public byte[] loadSessionDataFromRedis(String id) throws IOException {
-		Jedis jedis = null;
+		JedisCluster jedis = null;
 		Boolean error = true;
 
 		try {
@@ -573,7 +517,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 	}
 
 	public void save(Session session, boolean forceSave) throws IOException {
-		Jedis jedis = null;
+		JedisCluster jedis = null;
 		Boolean error = true;
 
 		try {
@@ -588,7 +532,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 		}
 	}
 
-	protected boolean saveInternal(Jedis jedis, Session session, boolean forceSave) throws IOException {
+	protected boolean saveInternal(JedisCluster jedis, Session session, boolean forceSave) throws IOException {
 		Boolean error = true;
 
 		try {
@@ -664,7 +608,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 
 	@Override
 	public void remove(Session session, boolean update) {
-		Jedis jedis = null;
+		JedisCluster jedis = null;
 		Boolean error = true;
 
 		log.trace("Removing session ID : " + session.getId());
@@ -712,19 +656,11 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 
 	private void initializeDatabaseConnection() throws LifecycleException {
 		try {
-			if (getSentinelMaster() != null) {
-				Set<String> sentinelSet = getSentinelSet();
-				if (sentinelSet != null && sentinelSet.size() > 0) {
-					connectionPool = new JedisSentinelPool(getSentinelMaster(), sentinelSet, this.connectionPoolConfig,
-							getTimeout(), getPassword());
-				} else {
-					throw new LifecycleException(
-							"Error configuring Redis Sentinel connection pool: expected both `sentinelMaster` and `sentiels` to be configured");
-				}
-			} else {
-				connectionPool = new JedisPool(this.connectionPoolConfig, getHost(), getPort(), getTimeout(),
-						getPassword());
-			}
+			
+			
+			
+			
+			//connectionPool = new JedisPool(this.connectionPoolConfig, getHost(), getPort(), getTimeout(),		getPassword());
 		} catch (Exception e) {
 			e.printStackTrace();
 			throw new LifecycleException("Error connecting to Redis", e);
@@ -766,6 +702,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 	// Connection Pool Config Accessors
 
 	// - from org.apache.commons.pool2.impl.GenericObjectPoolConfig
+	private PoolConfig connectionPoolConfig = new PoolConfig();
 
 	public int getConnectionPoolMaxTotal() {
 		return this.connectionPoolConfig.getMaxTotal();
@@ -913,5 +850,4 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 		this.connectionPoolConfig.setJmxNamePrefix(jmxNamePrefix);
 	}
 }
-
 
