@@ -29,10 +29,6 @@ import redis.clients.util.Pool;
 
 
 
-
-
-
-
 public class RedisSessionManager extends ManagerBase implements RedisSessionManagerBean, Lifecycle {
 
 	enum SessionPersistPolicy {

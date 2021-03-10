@@ -22,10 +22,6 @@ import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
 import redis.clients.jedis.JedisCluster;
-import redis.clients.jedis.Protocol;
-
-
-
 
 
 
@@ -662,7 +658,11 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 			
 			Properties clusterProps = new Properties();
 			clusterProps.setProperty( RedisConfig.CLUSTER_PROPERTY, getHost() );
-			clusterProps.setProperty( RedisConfig.TIMEOUT_PROPERTY , getTimeout());
+			
+			if ( !Objects.isNull( getTimeout() )) {
+				clusterProps.setProperty( RedisConfig.TIMEOUT_PROPERTY , getTimeout());
+			}
+			
 			clusterProps.setProperty( RedisConfig.MAXATTE_PROPERTY , "6");
 			
 			if ( !Objects.isNull( getPassword() ) ) {

@@ -12,14 +12,13 @@ The manager relies on the native expiration capability of Redis to expire keys f
 
 Data stored in the session must be Serializable.
 
+* [原项目"tomcat-redis-session-manager"](https://github.com/jcoleman/tomcat-redis-session-manager)
+
 
 Support this project!
 ---------------------
 
-This is an open-source project. Currently I'm not using this for anything personal or professional, so I'm not able to commit much time to the project, though I attempt to merge in reasonable pull requests. If you like to support further development of this project, you can donate via Pledgie:
-
-<a href='https://pledgie.com/campaigns/26802'><img alt='Click here to lend your support to: Tomcat Redis Session Manager and make a donation at pledgie.com !' src='https://pledgie.com/campaigns/26802.png?skin_name=chrome' border='0' ></a>
-
+This project is open project. 
 
 Commercial Support
 ------------------
@@ -27,35 +26,31 @@ Commercial Support
 If your business depends on Tomcat and persistent sessions and you need a specific feature this project doesn't yet support, a quick bug fix you don't have time to author, or commercial support when things go wrong, I can provide support on a contractual support through my consultancy, Orange Function, LLC. If you have any questions or would like to begin discussing a deal, please contact me via email at james@orangefunction.com.
 
 
-Tomcat Versions
+Tomcat Versions supported
 ---------------
 
-This project supports both Tomcat 6 and Tomcat 7. Starting at project version 1.1, precompiled JAR downloads are available for either version of Tomcat while project versions before 1.1 are only available for Tomcat 6.
-
-The official release branches in Git are as follows:
-* `master`: Continuing work for Tomcat 7 releases. Compatible with Java 7.
-* `tomcat-6`: Deprecated; may accept submitted patches, but no new work is being done on this branch. Compatible with Tomcat 6 and Java 6.
-
-Finalized branches include:
-* `tomcat-7`: Has been merged into `master`. Compatible with Java 6 or 7.
-* `java-7`: Has been merged into `master`. All of the work from master for Tomcat 7 but taking advantage of new features in Java 7. Compatible with Java 7 only.
-
-Tomcat 8
---------
-
-Tomcat 8 is not currently supported and has not been tested or developed for at all In fact, as noted in various bug reports, the project currently fails to compile when linked with Tomcat 8.
-
-I currently don't have the time to add Tomcat 8 support in my spare time. However if you're interested in Tomcat 8 support for your particular use case and/or business, as the README notes, I'm available as a consultancy on a contractual basis. If you'd like to pursue getting this feature added at a contract rate (and gain some commercial support as well), feel free to contact me at james@orangefunction.com.
+  * Tomcat 8.5 (Branch: * tomcat8x)
 
 Architecture
 ------------
 
 * RedisSessionManager: provides the session creation, saving, and loading functionality.
+* RedisClusterSessionManager: provides the redis cluster implement for SessionManager
 * RedisSessionHandlerValve: ensures that sessions are saved after a request is finished processing.
 
 Note: this architecture differs from the Apache PersistentManager implementation which implements persistent sticky sessions. Because that implementation expects all requests from a specific session to be routed to the same server, the timing persistence of sessions is non-deterministic since it is primarily for failover capabilities.
 
-Usage
+Deploy jars 
+-----
+Copy the following files into the `TOMCAT_BASE/lib` directory:
+
+* tomcat-redis-session-manager-[VERSION].jar
+* jedis-2.9.3.jar
+* commons-pool2-2.9.jar
+* slf4j-jdk14-1.7.22.jar
+
+
+Single Redis Usage
 -----
 
 Add the following into your Tomcat context.xml (or the context block of the server.xml if applicable.)
@@ -72,13 +67,25 @@ Add the following into your Tomcat context.xml (or the context block of the serv
 
 The Valve must be declared before the Manager.
 
-Copy the following files into the `TOMCAT_BASE/lib` directory:
+Reboot the server, and sessions should now be stored in Redis.
 
-* tomcat-redis-session-manager-VERSION.jar
-* jedis-2.5.2.jar
-* commons-pool2-2.2.jar
+
+Cluster Redis Usage
+-----
+
+Add the following into your Tomcat context.xml (or the context block of the server.xml if applicable.)
+
+    <Valve className="com.orangefunction.tomcat.redissessions.RedisSessionHandlerValve" />
+    <Manager className="com.orangefunction.tomcat.redissessions.RedisClusterSessionManager"
+             host="[ip1]:[port1],[ip2]:[port2],[ip3]:[port3]" <!-- optional: defaults to "localhost" -->
+             maxInactiveInterval="60" <!-- optional: defaults to "60" (in seconds) -->
+             sessionPersistPolicies="PERSIST_POLICY_1,PERSIST_POLICY_2,.." <!-- optional -->
+             sentinels="sentinel-host-1:port,sentinel-host-2:port,.." <!-- optional --> />
+
+The Valve must be declared before the Manager.
 
 Reboot the server, and sessions should now be stored in Redis.
+
 
 Connection Pool Configuration
 -----------------------------
@@ -122,36 +129,3 @@ Then the example above would look like this:
     myArray.add(additionalArrayValue);
     session.setAttribute("customDirtyFlag");
 
-Persistence Policies
---------------------
-
-With an persistent session storage there is going to be the distinct possibility of race conditions when requests for the same session overlap/occur concurrently. Additionally, because the session manager works by serializing the entire session object into Redis, concurrent updating of the session will exhibit last-write-wins behavior for the entire session (not just specific session attributes).
-
-Since each situation is different, the manager gives you several options which control the details of when/how sessions are persisted. Each of the following options may be selected by setting the `sessionPersistPolicies="PERSIST_POLICY_1,PERSIST_POLICY_2,.."` attributes in your manager declaration in Tomcat's context.xml. Unless noted otherwise, the various options are all combinable.
-
-- `SAVE_ON_CHANGE`: every time `session.setAttribute()` or `session.removeAttribute()` is called the session will be saved. __Note:__ This feature cannot detect changes made to objects already stored in a specific session attribute. __Tradeoffs__: This option will degrade performance slightly as any change to the session will save the session synchronously to Redis.
-- `ALWAYS_SAVE_AFTER_REQUEST`: force saving after every request, regardless of whether or not the manager has detected changes to the session. This option is particularly useful if you make changes to objects already stored in a specific session attribute. __Tradeoff:__ This option make actually increase the liklihood of race conditions if not all of your requests change the session.
-
-
-Testing/Example App
--------------------
-
-For full integration testing as well as a demonstration of how to use the session manager, this project contains an example app and a virtual server setup via Vagrant and Chef.
-
-To get the example server up and running, you'll need to do the following:
-1. Download and install Virtual Box (4.3.12 at the time of this writing) from https://www.virtualbox.org/wiki/Downloads
-1. Download and install the latest version (1.6.3 at the time of this writing) of Vagrant from http://www.vagrantup.com/downloads.html
-1. Install Ruby, if necessary.
-1. Install Berkshelf with `gem install berkshelf`
-1. Install the Vagrant Berkshelf plugin with `vagrant plugin install vagrant-berkshelf --plugin-version '>= 2.0.1'`
-1. Install the Vagrant Cachier plugin for _speed_ with `vagrant plugin install vagrant-cachier`
-1. Install the Vagrant Omnibus plugin with `vagrant plugin install vagrant-omnibus`
-1. Install the required Ruby gems with `PROJECT_ROOT/bundle install`
-1. Boot the virtual machine with `PROJECT_ROOT/vagrant up`
-1. Run the tests with `PROJECT_ROOT/rspec`
-
-
-Acknowledgements
-----------------
-
-The architecture of this project was based on the Mongo-Tomcat-Sessions project found at https://github.com/dawsonsystems/Mongo-Tomcat-Sessions
