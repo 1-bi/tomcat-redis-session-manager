@@ -31,20 +31,6 @@ import redis.clients.util.Pool;
 
 public class RedisSessionManager extends ManagerBase implements RedisSessionManagerBean, Lifecycle {
 
-	enum SessionPersistPolicy {
-		DEFAULT, SAVE_ON_CHANGE, ALWAYS_SAVE_AFTER_REQUEST;
-
-		static SessionPersistPolicy fromName(String name) {
-			for (SessionPersistPolicy policy : SessionPersistPolicy.values()) {
-				if (policy.name().equalsIgnoreCase(name)) {
-					return policy;
-				}
-			}
-			throw new IllegalArgumentException("Invalid session persist policy [" + name + "]. Must be one of "
-					+ Arrays.asList(SessionPersistPolicy.values()) + ".");
-		}
-	}
-
 	protected byte[] NULL_SESSION = "null".getBytes();
 
 	private final Log log = LogFactory.getLog(RedisSessionManager.class);
@@ -76,7 +62,6 @@ public class RedisSessionManager extends ManagerBase implements RedisSessionMana
 	/**
 	 * The lifecycle event support for this component.
 	 */
-	// protected LifecycleSupport lifecycle = new LifecycleSupport(this);
 
 	protected LifecycleSupport lifecycle = new LifecycleSupport(this);
 
@@ -218,11 +203,17 @@ public class RedisSessionManager extends ManagerBase implements RedisSessionMana
 		returnConnection(jedis, false);
 	}
 
+	/**
+	 * do not define this method for session manager
+	 */
 	@Override
 	public void load() throws ClassNotFoundException, IOException {
 
 	}
 
+	/**
+	 * do not define this method for session manager
+	 */
 	@Override
 	public void unload() throws IOException {
 
@@ -301,7 +292,6 @@ public class RedisSessionManager extends ManagerBase implements RedisSessionMana
 
 		initializeDatabaseConnection();
 
-		// setDistributable(true);
 	}
 
 	/**

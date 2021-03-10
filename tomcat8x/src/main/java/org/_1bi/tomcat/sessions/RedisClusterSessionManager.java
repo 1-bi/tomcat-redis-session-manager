@@ -25,22 +25,7 @@ import redis.clients.jedis.JedisCluster;
 
 
 
-
 public class RedisClusterSessionManager extends ManagerBase implements RedisSessionManagerBean, Lifecycle {
-
-	enum SessionPersistPolicy {
-		DEFAULT, SAVE_ON_CHANGE, ALWAYS_SAVE_AFTER_REQUEST;
-
-		static SessionPersistPolicy fromName(String name) {
-			for (SessionPersistPolicy policy : SessionPersistPolicy.values()) {
-				if (policy.name().equalsIgnoreCase(name)) {
-					return policy;
-				}
-			}
-			throw new IllegalArgumentException("Invalid session persist policy [" + name + "]. Must be one of "
-					+ Arrays.asList(SessionPersistPolicy.values()) + ".");
-		}
-	}
 
 	protected byte[] NULL_SESSION = "null".getBytes();
 
@@ -153,17 +138,13 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 	}
 
 	protected JedisCluster acquireConnection() {
-		JedisCluster jedis = connectionPool.getConnection();
-		return jedis;
+		return connectionPool.getConnection();
 	}
 
 	protected void returnConnection(JedisCluster jedis, Boolean error) {
 		connectionPool.returnConnection(jedis);
 	}
 
-	protected void returnConnection(JedisCluster jedis) {
-		connectionPool.returnConnection(jedis);
-	}
 
 	@Override
 	public void load() throws ClassNotFoundException, IOException {
@@ -248,7 +229,6 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 
 		initializeDatabaseConnection();
 
-		// setDistributable(true);
 	}
 
 	/**
@@ -297,15 +277,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 			} else {
 				do {
 					sessionId = sessionIdWithJvmRoute(generateSessionId(), jvmRoute);
-				} while (jedis.setnx(sessionId.getBytes(), NULL_SESSION) == 0L); // 1
-																					// =
-																					// key
-																					// set;
-																					// 0
-																					// =
-																					// key
-																					// already
-																					// existed
+				} while (jedis.setnx(sessionId.getBytes(), NULL_SESSION) == 0L); 
 			}
 
 			/*
@@ -406,34 +378,6 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 		return session;
 	}
 
-	public void clear() {
-		JedisCluster jedis = null;
-		Boolean error = true;
-		try {
-			jedis = acquireConnection();
-			jedis.flushDB();
-			error = false;
-		} finally {
-			if (jedis != null) {
-				returnConnection(jedis, error);
-			}
-		}
-	}
-
-	public int getSize() throws IOException {
-		JedisCluster jedis = null;
-		Boolean error = true;
-		try {
-			jedis = acquireConnection();
-			int size = jedis.dbSize().intValue();
-			error = false;
-			return size;
-		} finally {
-			if (jedis != null) {
-				returnConnection(jedis, error);
-			}
-		}
-	}
 
 	public String[] keys() throws IOException {
 		JedisCluster jedis = null;
@@ -498,7 +442,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 
 			if (log.isTraceEnabled()) {
 				log.trace("Session Contents [" + id + "]:");
-				Enumeration en = session.getAttributeNames();
+				Enumeration<String> en = session.getAttributeNames();
 				while (en.hasMoreElements()) {
 					log.trace("  " + en.nextElement());
 				}
@@ -541,7 +485,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 
 			if (log.isTraceEnabled()) {
 				log.trace("Session Contents [" + redisSession.getId() + "]:");
-				Enumeration en = redisSession.getAttributeNames();
+				Enumeration<String> en = redisSession.getAttributeNames();
 				while (en.hasMoreElements()) {
 					log.trace("  " + en.nextElement());
 				}
@@ -557,8 +501,9 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 					|| null == (isCurrentSessionPersisted = this.currentSessionIsPersisted.get())
 					|| !isCurrentSessionPersisted || !Arrays.equals(originalSessionAttributesHash,
 							(sessionAttributesHash = serializer.attributesHashFrom(redisSession)))) {
-
-				log.trace("Save was determined to be necessary");
+				if ( log.isTraceEnabled() ) {
+					log.trace("Save was determined to be necessary");
+				}
 
 				if (null == sessionAttributesHash) {
 					sessionAttributesHash = serializer.attributesHashFrom(redisSession);
@@ -575,17 +520,17 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 			} else {
 				log.trace("Save was determined to be unnecessary");
 			}
-
-			log.trace(
-					"Setting expire timeout on session [" + redisSession.getId() + "] to " + getMaxInactiveInterval());
+			
+			if ( log.isTraceEnabled() ) {
+				log.trace(
+						"Setting expire timeout on session [" + redisSession.getId() + "] to " + getMaxInactiveInterval());
+			}
 			jedis.expire(binaryId, getMaxInactiveInterval());
 
 			error = false;
-
-			return error;
+			
 		} catch (IOException e) {
 			log.error(e.getMessage());
-
 			throw e;
 		} finally {
 			return error;
@@ -678,21 +623,10 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 	}
 
 	private void initializeSerializer() throws ClassNotFoundException, IllegalAccessException, InstantiationException {
-		/*
-		 * log.info("Attempting to use serializer :" +
-		 * serializationStrategyClass); serializer = (Serializer)
-		 * Class.forName(serializationStrategyClass).newInstance();
-		 * 
-		 * Loader loader = null;
-		 * 
-		 * if (getContainer() != null) { loader = getContainer().getLoader(); }
-		 * 
-		 * ClassLoader classLoader = null;
-		 * 
-		 * if (loader != null) { classLoader = loader.getClassLoader(); }
-		 * serializer.setClassLoader(classLoader);
-		 */
-		log.info("Attempting to use serializer :" + serializationStrategyClass);
+
+		if ( log.isInfoEnabled() ) {
+			log.info("Attempting to use serializer :" + serializationStrategyClass);
+		}
 		serializer = (Serializer) Class.forName(serializationStrategyClass).newInstance();
 
 		Loader loader = null;

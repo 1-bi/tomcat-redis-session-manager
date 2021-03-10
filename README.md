@@ -1,8 +1,6 @@
-Redis Session Manager for Apache Tomcat
-=======================================
+# Redis Session Manager for Apache Tomcat
 
-Overview
---------
+## 1. Overview
 
 An session manager implementation that stores sessions in Redis for easy distribution of requests across a cluster of Tomcat servers. Sessions are implemented as as non-sticky--that is, each request is able to go to any server in the cluster (unlike the Apache provided Tomcat clustering setup.)
 
@@ -12,27 +10,19 @@ The manager relies on the native expiration capability of Redis to expire keys f
 
 Data stored in the session must be Serializable.
 
-* [原项目"tomcat-redis-session-manager"](https://github.com/jcoleman/tomcat-redis-session-manager)
+* [Source Project : "tomcat-redis-session-manager"](https://github.com/jcoleman/tomcat-redis-session-manager)
 
 
-Support this project!
----------------------
+##### Support this project!
 
-This project is open project. 
-
-Commercial Support
-------------------
-
-If your business depends on Tomcat and persistent sessions and you need a specific feature this project doesn't yet support, a quick bug fix you don't have time to author, or commercial support when things go wrong, I can provide support on a contractual support through my consultancy, Orange Function, LLC. If you have any questions or would like to begin discussing a deal, please contact me via email at james@orangefunction.com.
+This project is open project. If your business depends on Tomcat and persistent sessions and you need a specific feature,please contact me via email at vison_ruan@126.com. 
 
 
-Tomcat Versions supported
----------------
+## 2. Tomcat Versions supported
 
   * Tomcat 8.5 (Branch: * tomcat8x)
 
-Architecture
-------------
+## 3. Architecture
 
 * RedisSessionManager: provides the session creation, saving, and loading functionality.
 * RedisClusterSessionManager: provides the redis cluster implement for SessionManager
@@ -40,8 +30,9 @@ Architecture
 
 Note: this architecture differs from the Apache PersistentManager implementation which implements persistent sticky sessions. Because that implementation expects all requests from a specific session to be routed to the same server, the timing persistence of sessions is non-deterministic since it is primarily for failover capabilities.
 
-Deploy jars 
------
+## 4. Useage 
+
+#### 4.1 Deploys jars
 Copy the following files into the `TOMCAT_BASE/lib` directory:
 
 * tomcat-redis-session-manager-[VERSION].jar
@@ -50,11 +41,10 @@ Copy the following files into the `TOMCAT_BASE/lib` directory:
 * slf4j-jdk14-1.7.22.jar
 
 
-Single Redis Usage
------
+### 4.2 Single Redis Usage
 
 Add the following into your Tomcat context.xml (or the context block of the server.xml if applicable.)
-
+```
     <Valve className="com.orangefunction.tomcat.redissessions.RedisSessionHandlerValve" />
     <Manager className="com.orangefunction.tomcat.redissessions.RedisSessionManager"
              host="localhost" <!-- optional: defaults to "localhost" -->
@@ -62,29 +52,36 @@ Add the following into your Tomcat context.xml (or the context block of the serv
              database="0" <!-- optional: defaults to "0" -->
              maxInactiveInterval="60" <!-- optional: defaults to "60" (in seconds) -->
              sessionPersistPolicies="PERSIST_POLICY_1,PERSIST_POLICY_2,.." <!-- optional -->
-             sentinelMaster="SentinelMasterName" <!-- optional -->
              sentinels="sentinel-host-1:port,sentinel-host-2:port,.." <!-- optional --> />
-
+```
 The Valve must be declared before the Manager.
 
 Reboot the server, and sessions should now be stored in Redis.
 
+#### Attributes Support (Redis standalone) 
 
-Cluster Redis Usage
------
+- abc : dkii
+
+
+
+### 4.3 Cluster Redis Usage
 
 Add the following into your Tomcat context.xml (or the context block of the server.xml if applicable.)
-
+```
     <Valve className="com.orangefunction.tomcat.redissessions.RedisSessionHandlerValve" />
     <Manager className="com.orangefunction.tomcat.redissessions.RedisClusterSessionManager"
              host="[ip1]:[port1],[ip2]:[port2],[ip3]:[port3]" <!-- optional: defaults to "localhost" -->
              maxInactiveInterval="60" <!-- optional: defaults to "60" (in seconds) -->
              sessionPersistPolicies="PERSIST_POLICY_1,PERSIST_POLICY_2,.." <!-- optional -->
              sentinels="sentinel-host-1:port,sentinel-host-2:port,.." <!-- optional --> />
-
+```
 The Valve must be declared before the Manager.
 
 Reboot the server, and sessions should now be stored in Redis.
+
+#### Attributes Support (Redis cluster) 
+
+- abc : dkii
 
 
 Connection Pool Configuration

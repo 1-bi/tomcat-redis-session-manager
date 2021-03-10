@@ -220,21 +220,16 @@ public class RedisClusterConnPool implements ConnectionPool<JedisCluster> {
 
     @Override
     public JedisCluster getConnection() {
-    	
+    
     	JedisCluster newObject = null;
 		try {
 			
 			newObject = pool.borrowObject();
 		
-		} catch (NoSuchElementException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IllegalStateException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (Exception e) {
-
-			e.printStackTrace();
+		} catch (NoSuchElementException | IllegalStateException e) {
+			logger.warn( e.getMessage() );
+		}  catch (Exception e) {
+			logger.warn( "Unknown exception : " + e.getMessage() );
 		}
 
         return newObject;
