@@ -225,7 +225,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 			throw new LifecycleException(e);
 		}
 
-		log.info("Will expire sessions after " + getMaxInactiveInterval() + " seconds");
+		log.info("Will expire sessions after " + getSessMaxInactiveInterval() + " seconds");
 
 		initializeDatabaseConnection();
 
@@ -295,7 +295,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 				session.setNew(true);
 				session.setValid(true);
 				session.setCreationTime(System.currentTimeMillis());
-				session.setMaxInactiveInterval(getMaxInactiveInterval());
+				session.setMaxInactiveInterval(getSessMaxInactiveInterval());
 				session.setId(sessionId);
 				session.tellNew();
 			}
@@ -435,7 +435,7 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 
 			session.setId(id);
 			session.setNew(false);
-			session.setMaxInactiveInterval(getMaxInactiveInterval());
+			session.setMaxInactiveInterval(getSessMaxInactiveInterval());
 			session.access();
 			session.setValid(true);
 			session.resetDirtyTracking();
@@ -523,9 +523,9 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 			
 			if ( log.isTraceEnabled() ) {
 				log.trace(
-						"Setting expire timeout on session [" + redisSession.getId() + "] to " + getMaxInactiveInterval());
+						"Setting expire timeout on session [" + redisSession.getId() + "] to " + getSessMaxInactiveInterval());
 			}
-			jedis.expire(binaryId, getMaxInactiveInterval());
+			jedis.expire(binaryId, getSessMaxInactiveInterval());
 
 			error = false;
 			
@@ -537,12 +537,33 @@ public class RedisClusterSessionManager extends ManagerBase implements RedisSess
 		}
 	}
 
-	public int getMaxInactiveInterval() {
+	public int getSessMaxInactiveInterval() {
 		Context context = getContext();
-		if (context == null) {
-			return -1;
+		
+		int sessiontimeout = maxInactiveInterval;
+		
+		if (maxInactiveInterval > -1) {
+			sessiontimeout = this.maxInactiveInterval * 60;
 		}
+		
+		if (context != null) {
+			sessiontimeout = context.getSessionTimeout() * 60;
+		} 
 		return context.getSessionTimeout() * 60;
+	}
+	
+	protected int maxInactiveInterval = -1;
+	
+	public int getMaxInactiveInterval() {
+		return maxInactiveInterval;
+	}
+	
+	/**
+	 * unit : second
+	 * @param maxInactiveInterval
+	 */
+	public void setMaxInactiveInterval(int maxInactiveInterval) {
+		this.maxInactiveInterval = maxInactiveInterval;
 	}
 
 	@Override
